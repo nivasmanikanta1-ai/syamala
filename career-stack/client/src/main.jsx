@@ -4,10 +4,8 @@ import axios from "axios";
 import "./styles.css";
 
 const api = axios.create({
-baseURL: "https://syamala-u8lg.onrender.com/api"
+  baseURL: "https://syamala-u8lg.onrender.com/api"
 });
-
-
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("career_token");
@@ -20,95 +18,585 @@ api.interceptors.request.use((config) => {
 });
 
 function Auth({ onLogin }) {
-const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState("login");
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: ""
+  });
+  const [error, setError] = useState("");
 
-const [form, setForm] = useState({
-name: "",
-email: "",
-password: ""
-});
+  async function submit(e) {
+    e.preventDefault();
+    setError("");
 
-const [error, setError] = useState("");
+    try {
+      const response = await api.post(`/auth/${mode}`, form);
 
-async function submit(e) {
-e.preventDefault();
-setError("");
+      localStorage.setItem(
+        "career_token",
+        response.data.token
+      );
 
-try {
-  const r = await api.post(`/auth/${mode}`, form);
+      onLogin(response.data.user);
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Something went wrong. Please try again."
+      );
+    }
+  }
 
-  localStorage.setItem("career_token", r.data.token);
+  return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="brand">
+          Career<span>Stack</span>
+        </div>
 
-  onLogin(r.data.user);
-} catch (e) {
-  setError(
-    e.response?.data?.message ||
-    "Something went wrong"
+        <h1>
+          {mode === "login"
+            ? "Welcome back"
+            : "Create your career profile"}
+        </h1>
+
+        <p className="muted">
+          Jobs matched to your experience, skills and goals.
+        </p>
+
+        <form onSubmit={submit}>
+          {mode === "register" && (
+            <input
+              type="text"
+              placeholder="Full name"
+              value={form.name}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  name: e.target.value
+                })
+              }
+              required
+            />
+          )}
+
+          <input
+            type="email"
+            placeholder="Email"
+            value={form.email}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                email: e.target.value
+              })
+            }
+            required
+          />
+
+          <input
+            type="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                password: e.target.value
+              })
+            }
+            minLength="6"
+            required
+          />
+
+          {error && (
+            <div className="error">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="primary"
+          >
+            {mode === "login"
+              ? "Login"
+              : "Register"}
+          </button>
+        </form>
+
+        <button
+          type="button"
+          className="link"
+          onClick={() => {
+            setMode(
+              mode === "login"
+                ? "register"
+                : "login"
+            );
+            setError("");
+          }}
+        >
+          {mode === "login"
+            ? "New here? Create account"
+            : "Already have an account? Login"}
+        </button>
+      </div>
+    </div>
   );
 }
 
+function App() {
+  const [user, setUser] = useState(null);
+  const [page, setPage] = useState("dashboard");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("career_token");
+
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    api
+      .get("/profile")
+      .then((response) => {
+        setUser(response.data);
+      })
+      .catch(() => {
+        localStorage.removeItem("career_token");
+        setUser(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="loading">
+        Loading Career Stack...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Auth onLogin={setUser} />;
+  }
+
+  function logout() {
+    localStorage.removeItem("career_token");
+    setUser(null);
+  }
+
+  return (
+    <div className="app">
+      <header className="topbar">
+        <div className="brand">
+          Career<span>Stack</span>
+        </div>
+
+        <nav>
+          <button
+            className={
+              page === "dashboard"
+                ? "nav-active"
+                : ""
+            }
+            onClick={() => setPage("dashboard")}
+          >
+            Dashboard
+          </button>
+
+          <button
+            className={
+              page === "jobs"
+                ? "nav-active"
+                : ""
+            }
+            onClick={() => setPage("jobs")}
+          >
+            Jobs
+          </button>
+
+          <button
+            className={
+              page === "applications"
+                ? "nav-active"
+                : ""
+            }
+            onClick={() => setPage("applications")}
+          >
+            Applications
+          </button>
+
+          <button
+            className={
+              page === "interview"
+                ? "nav-active"
+                : ""
+            }
+            onClick={() => setPage("interview")}
+          >
+            Interview
+          </button>
+
+          <button
+            className={
+              page === "profile"
+                ? "nav-active"
+                : ""
+            }
+            onClick={() => setPage("profile")}
+          >
+            Profile
+          </button>
+
+          <button onClick={logout}>
+            Logout
+          </button>
+        </nav>
+      </header>
+
+      <main className="container">
+        {page === "dashboard" && (
+          <Dashboard setPage={setPage} />
+        )}
+
+        {page === "jobs" && <Jobs />}
+
+        {page === "applications" && (
+          <Applications />
+        )}
+
+        {page === "interview" && (
+          <Interview />
+        )}
+
+        {page === "profile" && (
+          <Profile
+            user={user}
+            setUser={setUser}
+          />
+        )}
+      </main>
+    </div>
+  );
 }
 
-return (
-<div className="auth-page">
-<div className="auth-card">
+function Dashboard({ setPage }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
 
-    <div className="brand">
-      Career<span>Stack</span>
-    </div>
+  useEffect(() => {
+    api
+      .get("/dashboard")
+      .then((response) => {
+        setData(response.data);
+      })
+      .catch((error) => {
+        setError(
+          error.response?.data?.message ||
+          "Unable to load dashboard"
+        );
+      });
+  }, []);
 
-    <h1>
-      {mode === "login"
-        ? "Welcome back"
-        : "Create your career profile"}
-    </h1>
+  if (error) {
+    return (
+      <div className="error">
+        {error}
+      </div>
+    );
+  }
 
-    <p className="muted">
-      Jobs matched to your experience, skills and goals.
-    </p>
+  if (!data) {
+    return (
+      <div className="loading">
+        Loading dashboard...
+      </div>
+    );
+  }
 
-    <form onSubmit={submit}>
+  const recommendedJobs =
+    data.recommended || [];
 
-      {mode === "register" && (
-        <input
-          placeholder="Full name"
-          value={form.name}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              name: e.target.value
-            })
-          }
-          required
-        />
+  const applications =
+    data.applications || [];
+
+  const skills =
+    data.user?.skills || [];
+
+  return (
+    <section>
+      <div className="hero">
+        <div>
+          <p className="eyebrow">
+            YOUR CAREER CONTROL CENTER
+          </p>
+
+          <h1>
+            Find work that fits <span>you.</span>
+          </h1>
+
+          <p>
+            Career Stack focuses on
+            experience-accurate jobs,
+            skill matching and interview
+            preparation.
+          </p>
+
+          <button
+            className="primary"
+            onClick={() => setPage("jobs")}
+          >
+            Explore matched jobs
+          </button>
+        </div>
+
+        <div className="hero-stat">
+          <strong>
+            {recommendedJobs[0]?.match?.score || 0}%
+          </strong>
+
+          <span>
+            Top job match
+          </span>
+        </div>
+      </div>
+
+      <div className="stats">
+        <div>
+          <strong>
+            {recommendedJobs.length}
+          </strong>
+          <span>
+            Recommended jobs
+          </span>
+        </div>
+
+        <div>
+          <strong>
+            {applications.reduce(
+              (total, item) =>
+                total + (item.count || 0),
+              0
+            )}
+          </strong>
+          <span>
+            Applications
+          </span>
+        </div>
+
+        <div>
+          <strong>
+            {skills.length}
+          </strong>
+          <span>
+            Skills
+          </span>
+        </div>
+      </div>
+
+      <h2>
+        Recommended for you
+      </h2>
+
+      <div className="job-grid">
+        {recommendedJobs.map((job) => (
+          <JobCard
+            key={job.id}
+            job={job}
+          />
+        ))}
+      </div>
+
+      {recommendedJobs.length === 0 && (
+        <p className="muted">
+          No recommended jobs available yet.
+          Complete your profile to improve
+          your job matches.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function JobCard({ job }) {
+  const [message, setMessage] = useState("");
+  const [applying, setApplying] = useState(false);
+
+  async function apply() {
+    setMessage("");
+    setApplying(true);
+
+    try {
+      const response = await api.post(
+        `/jobs/${job.id}/apply`
+      );
+
+      setMessage(
+        response.data?.message ||
+        "Application submitted successfully."
+      );
+    } catch (error) {
+      setMessage(
+        error.response?.data?.message ||
+        "Unable to apply for this job."
+      );
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  const matchScore =
+    job.match?.score || 0;
+
+  const experienceMatch =
+    job.match?.experienceMatch !== false;
+
+  return (
+    <article className="job-card">
+      <div className="match">
+        {matchScore}% match
+      </div>
+
+      <h3>
+        {job.title}
+      </h3>
+
+      <b>
+        {job.company}
+      </b>
+
+      <p>
+        {job.location || "Location not specified"}
+        {" · "}
+        {job.work_mode || "Not specified"}
+      </p>
+
+      <p>
+        {job.salary || "Salary not disclosed"}
+      </p>
+
+      <div className="chips">
+        {(job.skills || []).map((skill) => (
+          <span key={skill}>
+            {skill}
+          </span>
+        ))}
+      </div>
+
+      {!experienceMatch && (
+        <div className="warning">
+          Experience mismatch
+        </div>
       )}
 
-      <input
-        type="email"
-        placeholder="Email"
-        value={form.email}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            email: e.target.value
-          })
+      <button
+        className="primary small"
+        disabled={
+          !experienceMatch || applying
         }
-        required
-      />
+        onClick={apply}
+      >
+        {applying
+          ? "Applying..."
+          : experienceMatch
+            ? "Apply"
+            : "Not eligible"}
+      </button>
 
-      <input
-        type="password"
-        placeholder="Password"
-        value={form.password}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            password: e.target.value
-          })
+      {message && (
+        <small className="success">
+          {message}
+        </small>
+      )}
+    </article>
+  );
+}
+
+function Jobs() {
+  const [jobs, setJobs] = useState([]);
+  const [search, setSearch] = useState("");
+  const [location, setLocation] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function loadJobs() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await api.get(
+        "/jobs",
+        {
+          params: {
+            search,
+            location
+          }
         }
-        required
-        minLength="6"
-      />
+      );
+
+      setJobs(
+        Array.isArray(response.data)
+          ? response.data
+          : response.data.jobs || []
+      );
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to load jobs."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadJobs();
+  }, []);
+
+  return (
+    <section>
+      <div className="section-head">
+        <div>
+          <p className="eyebrow">
+            SMART MATCHING
+          </p>
+
+          <h1>
+            Jobs for you
+          </h1>
+        </div>
+      </div>
+
+      <div className="filters">
+        <input
+          type="text"
+          placeholder="Search job title or company"
+          value={search}
+          onChange={(e) =>
+            setSearch(e.target.value)
+          }
+        />
+
+        <input
+          type="text"
+          placeholder="Location"
+          value={location}
+          onChange={(e) =>
+            setLocation(e.target.value)
+          }
+        />
+
+        <button
+          className="primary"
+          onClick={loadJobs}
+          disabled={loading}
+        >
+          {loading ? "Searching..." : "Search"}
+        </button>
+      </div>
 
       {error && (
         <div className="error">
@@ -116,807 +604,495 @@ return (
         </div>
       )}
 
-      <button className="primary">
-        {mode === "login" ? "Login" : "Register"}
-      </button>
+      <div className="job-grid">
+        {jobs.map((job) => (
+          <JobCard
+            key={job.id}
+            job={job}
+          />
+        ))}
+      </div>
 
-    </form>
-
-    <button
-      className="link"
-      onClick={() =>
-        setMode(
-          mode === "login"
-            ? "register"
-            : "login"
-        )
-      }
-    >
-      {mode === "login"
-        ? "New here? Create account"
-        : "Already have an account? Login"}
-    </button>
-
-  </div>
-</div>
-
-);
-}
-
-function App() {
-const [user, setUser] = useState(null);
-const [page, setPage] = useState("dashboard");
-const [loading, setLoading] = useState(true);
-
-useEffect(() => {
-const token = localStorage.getItem("career_token");
-
-if (!token) {
-  setLoading(false);
-  return;
-}
-
-api
-  .get("/profile")
-  .then((r) => setUser(r.data))
-  .catch(() => {
-    localStorage.removeItem("career_token");
-  })
-  .finally(() => setLoading(false));
-
-}, []);
-
-if (loading) {
-return (
-<div className="loading">
-Loading Career Stack...
-</div>
-);
-}
-
-if (!user) {
-return <Auth onLogin={setUser} />;
-}
-
-function logout() {
-localStorage.removeItem("career_token");
-setUser(null);
-}
-
-return (
-<div className="app">
-
-  <header className="topbar">
-
-    <div className="brand">
-      Career<span>Stack</span>
-    </div>
-
-    <nav>
-      {[
-        "dashboard",
-        "jobs",
-        "applications",
-        "interview",
-        "profile"
-      ].map((x) => (
-        <button
-          key={x}
-          className={page === x ? "nav-active" : ""}
-          onClick={() => setPage(x)}
-        >
-          {x[0].toUpperCase() + x.slice(1)}
-        </button>
-      ))}
-
-      <button onClick={logout}>
-        Logout
-      </button>
-    </nav>
-
-  </header>
-
-  <main className="container">
-
-    {page === "dashboard" && (
-      <Dashboard setPage={setPage} />
-    )}
-
-    {page === "jobs" && <Jobs />}
-
-    {page === "applications" && (
-      <Applications />
-    )}
-
-    {page === "interview" && (
-      <Interview />
-    )}
-
-    {page === "profile" && (
-      <Profile
-        user={user}
-        setUser={setUser}
-      />
-    )}
-
-  </main>
-
-</div>
-
-);
-}
-
-function Dashboard({ setPage }) {
-const [data, setData] = useState(null);
-const [error, setError] = useState("");
-
-useEffect(() => {
-api
-.get("/dashboard")
-.then((r) => setData(r.data))
-.catch((e) =>
-setError(
-e.response?.data?.message ||
-"Unable to load dashboard"
-)
-);
-}, []);
-
-if (error) {
-return <div className="error">{error}</div>;
-}
-
-if (!data) {
-return (
-<div className="loading">
-Loading dashboard...
-</div>
-);
-}
-
-return (
-<section>
-
-  <div className="hero">
-
-    <div>
-      <p className="eyebrow">
-        YOUR CAREER CONTROL CENTER
-      </p>
-
-      <h1>
-        Find work that fits <span>you.</span>
-      </h1>
-
-      <p>
-        Career Stack focuses on
-        experience-accurate jobs,
-        skill matching and interview
-        preparation.
-      </p>
-
-      <button
-        className="primary"
-        onClick={() => setPage("jobs")}
-      >
-        Explore matched jobs
-      </button>
-    </div>
-
-    <div className="hero-stat">
-      <strong>
-        {data.recommended?.[0]?.match?.score || 0}%
-      </strong>
-
-      <span>
-        Top job match
-      </span>
-    </div>
-
-  </div>
-
-  <div className="stats">
-
-    <div>
-      <strong>
-        {data.recommended?.length || 0}
-      </strong>
-      <span>
-        Recommended jobs
-      </span>
-    </div>
-
-    <div>
-      <strong>
-        {data.applications?.reduce(
-          (a, x) => a + x.count,
-          0
-        ) || 0}
-      </strong>
-      <span>
-        Applications
-      </span>
-    </div>
-
-    <div>
-      <strong>
-        {data.user?.skills?.length || 0}
-      </strong>
-      <span>
-        Skills
-      </span>
-    </div>
-
-  </div>
-
-  <h2>
-    Recommended for you
-  </h2>
-
-  <div className="job-grid">
-
-    {data.recommended?.map((j) => (
-      <JobCard
-        key={j.id}
-        job={j}
-      />
-    ))}
-
-  </div>
-
-</section>
-
-);
-}
-
-function JobCard({ job }) {
-const [message, setMessage] = useState("");
-
-async function apply() {
-try {
-const r = await api.post(
-/jobs/${job.id}/apply
-);
-
-  setMessage(r.data.message);
-} catch (e) {
-  setMessage(
-    e.response?.data?.message ||
-    "Unable to apply"
+      {!loading && jobs.length === 0 && (
+        <p className="muted">
+          No jobs found.
+        </p>
+      )}
+    </section>
   );
-}
-
-}
-
-return (
-<article className="job-card">
-
-  <div className="match">
-    {job.match?.score || 0}% match
-  </div>
-
-  <h3>{job.title}</h3>
-
-  <b>{job.company}</b>
-
-  <p>
-    {job.location} · {job.work_mode}
-  </p>
-
-  <p>
-    {job.salary || "Salary not disclosed"}
-  </p>
-
-  <div className="chips">
-    {job.skills?.map((s) => (
-      <span key={s}>{s}</span>
-    ))}
-  </div>
-
-  {!job.match?.experienceMatch && (
-    <div className="warning">
-      Experience mismatch
-    </div>
-  )}
-
-  <button
-    className="primary small"
-    disabled={!job.match?.experienceMatch}
-    onClick={apply}
-  >
-    {job.match?.experienceMatch
-      ? "Apply"
-      : "Not eligible"}
-  </button>
-
-  {message && (
-    <small className="success">
-      {message}
-    </small>
-  )}
-
-</article>
-
-);
-}
-
-function Jobs() {
-const [jobs, setJobs] = useState([]);
-const [search, setSearch] = useState("");
-const [location, setLocation] = useState("");
-const [error, setError] = useState("");
-
-async function load() {
-try {
-const r = await api.get("/jobs", {
-params: {
-search,
-location
-}
-});
-
-  setJobs(r.data);
-} catch (e) {
-  setError(
-    e.response?.data?.message ||
-    "Unable to load jobs"
-  );
-}
-
-}
-
-useEffect(() => {
-load();
-}, []);
-
-return (
-<section>
-
-  <div className="section-head">
-    <div>
-      <p className="eyebrow">
-        SMART MATCHING
-      </p>
-
-      <h1>
-        Jobs for you
-      </h1>
-    </div>
-  </div>
-
-  <div className="filters">
-
-    <input
-      placeholder="Search job title or company"
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-    />
-
-    <input
-      placeholder="Location"
-      value={location}
-      onChange={(e) => setLocation(e.target.value)}
-    />
-
-    <button
-      className="primary"
-      onClick={load}
-    >
-      Search
-    </button>
-
-  </div>
-
-  {error && (
-    <div className="error">
-      {error}
-    </div>
-  )}
-
-  <div className="job-grid">
-
-    {jobs.map((j) => (
-      <JobCard
-        key={j.id}
-        job={j}
-      />
-    ))}
-
-  </div>
-
-</section>
-
-);
 }
 
 function Applications() {
-const [apps, setApps] = useState([]);
-const [error, setError] = useState("");
+  const [applications, setApplications] =
+    useState([]);
 
-useEffect(() => {
-api
-.get("/applications")
-.then((r) => setApps(r.data))
-.catch((e) =>
-setError(
-e.response?.data?.message ||
-"Unable to load applications"
-)
-);
-}, []);
+  const [error, setError] =
+    useState("");
 
-return (
-<section>
+  const [loading, setLoading] =
+    useState(true);
 
-  <p className="eyebrow">
-    TRACK EVERYTHING
-  </p>
+  useEffect(() => {
+    api
+      .get("/applications")
+      .then((response) => {
+        setApplications(
+          Array.isArray(response.data)
+            ? response.data
+            : response.data.applications || []
+        );
+      })
+      .catch((error) => {
+        setError(
+          error.response?.data?.message ||
+          "Unable to load applications."
+        );
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
-  <h1>
-    My Applications
-  </h1>
-
-  {error && (
-    <div className="error">
-      {error}
-    </div>
-  )}
-
-  <div className="table-wrap">
-
-    <table>
-
-      <thead>
-        <tr>
-          <th>Job</th>
-          <th>Company</th>
-          <th>Location</th>
-          <th>Status</th>
-          <th>Applied</th>
-        </tr>
-      </thead>
-
-      <tbody>
-
-        {apps.map((a) => (
-          <tr key={a.id}>
-
-            <td>{a.title}</td>
-
-            <td>{a.company}</td>
-
-            <td>{a.location}</td>
-
-            <td>
-              <span className="status">
-                {a.status}
-              </span>
-            </td>
-
-            <td>
-              {new Date(
-                a.applied_at
-              ).toLocaleDateString()}
-            </td>
-
-          </tr>
-        ))}
-
-      </tbody>
-
-    </table>
-
-    {!apps.length && (
-      <p className="muted empty">
-        No applications yet.
+  return (
+    <section>
+      <p className="eyebrow">
+        TRACK EVERYTHING
       </p>
-    )}
 
-  </div>
+      <h1>
+        My Applications
+      </h1>
 
-</section>
+      {error && (
+        <div className="error">
+          {error}
+        </div>
+      )}
 
-);
+      {loading ? (
+        <div className="loading">
+          Loading applications...
+        </div>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Job</th>
+                <th>Company</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Applied</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {applications.map((application) => (
+                <tr key={application.id}>
+                  <td>
+                    {application.title}
+                  </td>
+
+                  <td>
+                    {application.company}
+                  </td>
+
+                  <td>
+                    {application.location}
+                  </td>
+
+                  <td>
+                    <span className="status">
+                      {application.status}
+                    </span>
+                  </td>
+
+                  <td>
+                    {application.applied_at
+                      ? new Date(
+                          application.applied_at
+                        ).toLocaleDateString()
+                      : "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {applications.length === 0 && (
+            <p className="muted empty">
+              No applications yet.
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function Interview() {
-const [qs, setQs] = useState([]);
-const [category, setCategory] = useState("");
-const [error, setError] = useState("");
+  const [questions, setQuestions] =
+    useState([]);
 
-useEffect(() => {
-api
-.get("/interview/questions")
-.then((r) => setQs(r.data))
-.catch((e) =>
-setError(
-e.response?.data?.message ||
-"Unable to load interview questions"
-)
-);
-}, []);
+  const [category, setCategory] =
+    useState("");
 
-async function filter(c) {
-setCategory(c);
+  const [error, setError] =
+    useState("");
 
-try {
-  const r = await api.get(
-    "/interview/questions",
-    {
-      params: c
-        ? { category: c }
-        : {}
-    }
-  );
+  const [loading, setLoading] =
+    useState(true);
 
-  setQs(r.data);
-} catch (e) {
-  setError(
-    e.response?.data?.message ||
-    "Unable to load questions"
-  );
-}
+  async function loadQuestions(
+    selectedCategory = ""
+  ) {
+    setLoading(true);
+    setError("");
 
-}
-
-const cats = [
-...new Set(
-qs.map((q) => q.category)
-)
-];
-
-return (
-<section>
-
-  <p className="eyebrow">
-    PREPARE BEFORE YOU APPLY
-  </p>
-
-  <h1>
-    Interview Preparation
-  </h1>
-
-  <p className="muted">
-    Practice questions based on common
-    fresher and junior roles.
-  </p>
-
-  {error && (
-    <div className="error">
-      {error}
-    </div>
-  )}
-
-  <div className="chips filter-chips">
-
-    <button
-      className={!category ? "selected" : ""}
-      onClick={() => filter("")}
-    >
-      All
-    </button>
-
-    {cats.map((c) => (
-      <button
-        className={
-          category === c
-            ? "selected"
-            : ""
+    try {
+      const response = await api.get(
+        "/interview/questions",
+        {
+          params: selectedCategory
+            ? {
+                category: selectedCategory
+              }
+            : {}
         }
-        key={c}
-        onClick={() => filter(c)}
-      >
-        {c}
-      </button>
-    ))}
+      );
 
-  </div>
+      setQuestions(
+        Array.isArray(response.data)
+          ? response.data
+          : response.data.questions || []
+      );
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to load interview questions."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  <div className="question-list">
+  useEffect(() => {
+    loadQuestions();
+  }, []);
 
-    {qs.map((q, i) => (
-      <div
-        className="question"
-        key={q.id}
-      >
+  const categories = [
+    ...new Set(
+      questions
+        .map((question) => question.category)
+        .filter(Boolean)
+    )
+  ];
 
-        <span>
-          {i + 1}
-        </span>
+  function selectCategory(value) {
+    setCategory(value);
+    loadQuestions(value);
+  }
 
-        <div>
+  return (
+    <section>
+      <p className="eyebrow">
+        PREPARE BEFORE YOU APPLY
+      </p>
 
-          <b>
-            {q.category}
-          </b>
+      <h1>
+        Interview Preparation
+      </h1>
 
-          <p>
-            {q.question}
-          </p>
+      <p className="muted">
+        Practice questions based on common
+        fresher and junior roles.
+      </p>
 
+      {error && (
+        <div className="error">
+          {error}
         </div>
+      )}
 
+      <div className="chips filter-chips">
+        <button
+          className={
+            !category ? "selected" : ""
+          }
+          onClick={() =>
+            selectCategory("")
+          }
+        >
+          All
+        </button>
+
+        {categories.map((item) => (
+          <button
+            key={item}
+            className={
+              category === item
+                ? "selected"
+                : ""
+            }
+            onClick={() =>
+              selectCategory(item)
+            }
+          >
+            {item}
+          </button>
+        ))}
       </div>
-    ))}
 
-  </div>
+      {loading ? (
+        <div className="loading">
+          Loading questions...
+        </div>
+      ) : (
+        <div className="question-list">
+          {questions.map(
+            (question, index) => (
+              <div
+                className="question"
+                key={question.id}
+              >
+                <span>
+                  {index + 1}
+                </span>
 
-</section>
+                <div>
+                  <b>
+                    {question.category}
+                  </b>
 
-);
+                  <p>
+                    {question.question}
+                  </p>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      )}
+
+      {!loading && questions.length === 0 && (
+        <p className="muted">
+          No interview questions found.
+        </p>
+      )}
+    </section>
+  );
 }
 
 function Profile({ user, setUser }) {
-const [form, setForm] = useState({
-...user,
-skills: (user.skills || []).join(", ")
-});
+  const [form, setForm] = useState({
+    ...user,
+    skills: Array.isArray(user.skills)
+      ? user.skills.join(", ")
+      : user.skills || ""
+  });
 
-const [msg, setMsg] = useState("");
-const [error, setError] = useState("");
+  const [message, setMessage] =
+    useState("");
 
-async function save(e) {
-e.preventDefault();
+  const [error, setError] =
+    useState("");
 
-setMsg("");
-setError("");
+  const [saving, setSaving] =
+    useState(false);
 
-try {
-  const r = await api.put(
-    "/profile",
-    form
+  async function save(e) {
+    e.preventDefault();
+
+    setMessage("");
+    setError("");
+    setSaving(true);
+
+    const payload = {
+      ...form,
+      skills:
+        typeof form.skills === "string"
+          ? form.skills
+              .split(",")
+              .map((skill) => skill.trim())
+              .filter(Boolean)
+          : form.skills
+    };
+
+    try {
+      const response = await api.put(
+        "/profile",
+        payload
+      );
+
+      const updatedUser =
+        response.data;
+
+      setUser(updatedUser);
+
+      setForm({
+        ...updatedUser,
+        skills: Array.isArray(
+          updatedUser.skills
+        )
+          ? updatedUser.skills.join(", ")
+          : updatedUser.skills || ""
+      });
+
+      setMessage(
+        "Profile saved successfully."
+      );
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+        "Unable to save profile."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section>
+      <p className="eyebrow">
+        YOUR CAREER IDENTITY
+      </p>
+
+      <h1>
+        Profile
+      </h1>
+
+      {error && (
+        <div className="error">
+          {error}
+        </div>
+      )}
+
+      <form
+        className="profile-form"
+        onSubmit={save}
+      >
+        <label>
+          Name
+
+          <input
+            type="text"
+            value={form.name || ""}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                name: e.target.value
+              })
+            }
+          />
+        </label>
+
+        <label>
+          Experience (years)
+
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            value={
+              form.experience_years ?? 0
+            }
+            onChange={(e) =>
+              setForm({
+                ...form,
+                experience_years:
+                  e.target.value
+              })
+            }
+          />
+        </label>
+
+        <label>
+          Education
+
+          <input
+            type="text"
+            value={form.education || ""}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                education: e.target.value
+              })
+            }
+            placeholder="Diploma / B.Tech / Degree"
+          />
+        </label>
+
+        <label>
+          Current location
+
+          <input
+            type="text"
+            value={form.location || ""}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                location: e.target.value
+              })
+            }
+          />
+        </label>
+
+        <label>
+          Preferred job location
+
+          <input
+            type="text"
+            value={
+              form.preferred_location || ""
+            }
+            onChange={(e) =>
+              setForm({
+                ...form,
+                preferred_location:
+                  e.target.value
+              })
+            }
+          />
+        </label>
+
+        <label>
+          Skills
+
+          <input
+            type="text"
+            value={form.skills || ""}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                skills: e.target.value
+              })
+            }
+            placeholder="HTML, CSS, JavaScript, AWS"
+          />
+        </label>
+
+        <button
+          type="submit"
+          className="primary"
+          disabled={saving}
+        >
+          {saving
+            ? "Saving..."
+            : "Save profile"}
+        </button>
+
+        {message && (
+          <span className="success">
+            {message}
+          </span>
+        )}
+      </form>
+    </section>
   );
-
-  setUser(r.data);
-
-  setMsg(
-    "Profile saved successfully"
-  );
-} catch (e) {
-  setError(
-    e.response?.data?.message ||
-    "Unable to save profile"
-  );
-}
-
-}
-
-return (
-<section>
-
-  <p className="eyebrow">
-    YOUR CAREER IDENTITY
-  </p>
-
-  <h1>
-    Profile
-  </h1>
-
-  {error && (
-    <div className="error">
-      {error}
-    </div>
-  )}
-
-  <form
-    className="profile-form"
-    onSubmit={save}
-  >
-
-    <label>
-      Name
-
-      <input
-        value={form.name || ""}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            name: e.target.value
-          })
-        }
-      />
-    </label>
-
-    <label>
-      Experience (years)
-
-      <input
-        type="number"
-        min="0"
-        step="0.1"
-        value={
-          form.experience_years || 0
-        }
-        onChange={(e) =>
-          setForm({
-            ...form,
-            experience_years:
-              e.target.value
-          })
-        }
-      />
-    </label>
-
-    <label>
-      Education
-
-      <input
-        value={form.education || ""}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            education: e.target.value
-          })
-        }
-        placeholder="Diploma / B.Tech / Degree"
-      />
-    </label>
-
-    <label>
-      Current location
-
-      <input
-        value={form.location || ""}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            location: e.target.value
-          })
-        }
-      />
-    </label>
-
-    <label>
-      Preferred job location
-
-      <input
-        value={
-          form.preferred_location || ""
-        }
-        onChange={(e) =>
-          setForm({
-            ...form,
-            preferred_location:
-              e.target.value
-          })
-        }
-      />
-    </label>
-
-    <label>
-      Skills
-
-      <input
-        value={form.skills || ""}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            skills: e.target.value
-          })
-        }
-        placeholder="HTML, CSS, JavaScript, AWS"
-      />
-    </label>
-
-    <button className="primary">
-      Save profile
-    </button>
-
-    {msg && (
-      <span className="success">
-        {msg}
-      </span>
-    )}
-
-  </form>
-
-</section>
-
-);
 }
 
 createRoot(
-document.getElementById("root")
+  document.getElementById("root")
 ).render(
-<App />
+  <App />
 );
